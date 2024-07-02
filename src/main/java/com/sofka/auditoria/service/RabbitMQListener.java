@@ -9,7 +9,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class RabbitMQListener {
@@ -22,14 +24,30 @@ public class RabbitMQListener {
     @RabbitListener(queues = "auditoria-queue")
     public void receiveMessage(Map<String, Object> message) {
         logger.info("Received message: {}", message);
-        Auditoria auditoria = new Auditoria();
-        auditoria.setUsuario((String) message.get("usuario"));
-        auditoria.setAccion((String) message.get("accion"));
-        auditoria.setFecha(LocalDateTime.parse((String) message.get("fecha")));
 
-        auditoriaRepository.save(auditoria)
-                .doOnNext(aud -> logger.info("Saved auditoria: {}", aud))
-                .doOnError(e -> logger.error("Error saving auditoria", e))
-                .subscribe();
+        String usuario = (String) message.get("usuario");
+        String accion = (String) message.get("accion");
+        String fechaStr = (String) message.get("fecha");
+
+        if (Objects.isNull(usuario) || Objects.isNull(accion) || Objects.isNull(fechaStr)) {
+            logger.error("Invalid message format: {}", message);
+            return;
+        }
+
+        try {
+            LocalDateTime fecha = LocalDateTime.parse(fechaStr);
+            Auditoria auditoria = new Auditoria();
+            auditoria.setUsuario(usuario);
+            auditoria.setAccion(accion);
+            auditoria.setFecha(fecha);
+
+            auditoriaRepository.save(auditoria)
+                    .doOnNext(aud -> logger.info("Saved auditoria: {}", aud))
+                    .doOnError(e -> logger.error("Error saving auditoria", e))
+                    .subscribe();
+
+        } catch (DateTimeParseException e) {
+            logger.error("Error parsing date: {}", fechaStr, e);
+        }
     }
 }

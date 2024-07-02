@@ -1,0 +1,12 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/auditoria
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+  security:
+    user:
+      name: user
+      password: password
